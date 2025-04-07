@@ -44,83 +44,83 @@ class MyPlayer(PlayerDivercite):
         else:
             depth = 1  
 
-        possible_actions = current_state.generate_possible_heavy_actions()
-
-        best_value = float("-inf")
+        best_score = float("-inf")
         best_action = None
 
-        for action in possible_actions:
+        for action in current_state.generate_possible_heavy_actions():
             next_state = action.get_next_game_state()
-            value, _ = self.min_value(next_state, depth - 1, remaining_time, float("-inf"), float("inf"))
-
-            if value > best_value:
-                best_value = value
+            score = self.max_value(next_state, remaining_time, depth - 1, float("-inf"), float("inf"))
+            if score > best_score:
+                best_score = score
                 best_action = action
 
         return best_action
+
+    
+    def minimax(self,state: GameState, depth: int, remaining_time: int, alpha: float, beta: float, maximize: bool) -> float:
+            if depth == 0 or state.is_done():
+                return (self.utility(state, remaining_time))
+            
+            if maximize:
+                return self.max_value(state, remaining_time, depth, alpha, beta)
+            else:
+                return self.min_value(state, remaining_time, depth, alpha, beta)
     
     
     def max_value(self, state: GameState, depth: int, remaining_time: int, alpha: float, beta: float) -> float:
             if depth == 0 or state.is_done():
-                return (self.utility(state, remaining_time), None)
+                return (self.utility(state, remaining_time))
 
             value_star = float('-inf')
-            best_action = None
 
             actions = sorted(state.generate_possible_heavy_actions(), key=lambda a: self.utility(a.get_next_game_state(), remaining_time))
-
+            
             for action in actions:
                 next_state = action.get_next_game_state()
-                (value,_) = self.min_value(next_state, depth - 1, remaining_time, alpha, beta)
+                value = self.minimax(next_state, remaining_time, depth-1, alpha, beta, False )
+                
+                value_star = max(value_star, value)
+                alpha = max(alpha, value)
 
-                if value > value_star:
-                    value_star = value
-                    best_action = action
-
-                if value_star >= beta:
-                    break 
-                alpha = max(alpha, value_star)
-            
-            return (value_star, best_action)
+                if beta <= alpha:
+                     break
+ 
+            return value_star
 
 
     def min_value(self, state: GameState, depth: int, remaining_time, alpha: float, beta: float) -> float:
             if depth == 0 or state.is_done():
-                return (self.utility(state, remaining_time), None)
+                return (self.utility(state, remaining_time))
 
             value_star = float('inf')
-            best_action = None
 
             actions = sorted(state.generate_possible_heavy_actions(), key=lambda a: self.utility(a.get_next_game_state(), remaining_time))
             
             for action in actions:
                 next_state = action.get_next_game_state()
-                (value,_) = self.max_value(next_state, depth - 1,remaining_time, alpha, beta)
-
-                if value < value_star:
-                    value_star = value
-                    best_action = action
+                value = self.minimax(next_state, remaining_time, depth - 1,remaining_time, alpha, beta, True)
                 
-                if value_star <= alpha:
-                    break  # 💥 Couper la branche
-                beta = min(beta, value_star)
-            
-            return (value_star, best_action)
+                value_star = min(value_star, value)
+                beta = min(beta, value)
+
+                if beta <= alpha:
+                    break
+    
+            return value_star
         
         
     def utility(self, state: GameStateDivercite, remaining_time: int) -> float:
 
         # calcule le score de l'agent par rapport à son adversaire
         player_id = self.get_id()
+
         player_score = state.scores[player_id]
-        opponent_id = [pid for pid in state.scores if pid != self.get_id()][0]
-        opponent_score = state.scores[opponent_id] 
+        opponent_score = sum(state.scores.values()) - player_score
         score = player_score - opponent_score
 
         # facteur de temps
         time_factor = (remaining_time / 10) * 0.05
         score += time_factor
-
 
         return score
     
